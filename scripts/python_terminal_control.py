@@ -6,9 +6,6 @@ import subprocess
 import os, sys, signal
 from mavros_msgs.msg import State
 
-import sys
-import signal
-
 def signal_handler(signal, frame): # ctrl + c -> exit program
     print('You pressed Ctrl+C!')
     sys.exit(0)
@@ -26,16 +23,17 @@ def terminate_process_and_children(p):
 
 ''' class '''
 class robot():
-    def __init__(self):
+    def __init__(self, output_dir):
         rospy.init_node('record_python_node', anonymous=True)
         self.state_sub = rospy.Subscriber('/mavros/state', State, self.signal_cb)
         self.switch_flag = False
+        self.output_dir = output_dir
         self.rate = rospy.Rate(1)
 
     def signal_cb(self, msg):
         if not self.switch_flag and msg.armed:
             self.switch_flag = True
-            self.process1 = subprocess.Popen(['rosrun', 'drone_auto_bag_record', 'record.sh'])
+            self.process1 = subprocess.Popen(['rosrun', 'drone_auto_bag_record', 'record.sh', self.output_dir])
             print("Record start!")
         elif self.switch_flag and not msg.armed:
             terminate_process_and_children(self.process1)
@@ -44,8 +42,14 @@ class robot():
 
 
 if __name__ == '__main__':
-    record_ = robot()
+    if len(sys.argv) < 2:
+        print("Usage: python3 script_name.py <output_directory>")
+        sys.exit(1)
+
+    output_dir = sys.argv[1]
+    record_ = robot(output_dir)
     time.sleep(0.5)
+    
     while 1:
         try:
             record_.rate.sleep()
